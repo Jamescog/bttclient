@@ -21,7 +21,6 @@ func DecodeNext(data []byte, index int) (interface{}, int, error) {
 
 	char := data[index]
 
-	// --- INTEGER ---
 	if char == 'i' {
 		end := bytes.IndexByte(data[index:], 'e')
 		if end == -1 {
@@ -35,7 +34,6 @@ func DecodeNext(data []byte, index int) (interface{}, int, error) {
 		return num, end + 1, nil
 	}
 
-	// --- STRING ---
 	if char >= '0' && char <= '9' {
 		colon := bytes.IndexByte(data[index:], ':')
 		if colon == -1 {
@@ -55,7 +53,6 @@ func DecodeNext(data []byte, index int) (interface{}, int, error) {
 		return value, end, nil
 	}
 
-	// --- LIST ---
 	if char == 'l' {
 		var lst []interface{}
 		i := index + 1
@@ -73,12 +70,10 @@ func DecodeNext(data []byte, index int) (interface{}, int, error) {
 		return lst, i + 1, nil
 	}
 
-	// --- DICTIONARY ---
 	if char == 'd' {
 		dct := make(map[string]interface{})
 		i := index + 1
 		for i < len(data) && data[i] != 'e' {
-			// keys must be strings
 			keyRaw, next, err := DecodeNext(data, i)
 			if err != nil {
 				return nil, i, err
