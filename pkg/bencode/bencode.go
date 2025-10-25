@@ -181,3 +181,49 @@ func (t *Torrent) PieceLength() int {
 	}
 	return 0
 }
+
+func (t *Torrent) Pieces() []byte {
+	info := t.Info()
+	if info != nil {
+		if val, ok := info["pieces"].([]byte); ok {
+			return val
+		}
+		if val, ok := info["pieces"].(string); ok {
+			return []byte(val)
+		}
+	}
+	return nil
+}
+
+func (t *Torrent) Length() int64 {
+	info := t.Info()
+	if info != nil {
+		if val, ok := info["length"].(int); ok {
+			return int64(val)
+		}
+		if val, ok := info["length"].(int64); ok {
+			return val
+		}
+
+		if files, ok := info["files"].([]interface{}); ok {
+			var total int64
+			for _, f := range files {
+				if fileMap, ok := f.(map[string]interface{}); ok {
+					if length, ok := fileMap["length"].(int); ok {
+						total += int64(length)
+					}
+				}
+			}
+			return total
+		}
+	}
+	return 0
+}
+
+func (t *Torrent) NumPieces() int {
+	pieces := t.Pieces()
+	if pieces == nil {
+		return 0
+	}
+	return len(pieces) / 20
+}

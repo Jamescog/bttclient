@@ -10,8 +10,10 @@ import (
 	"math"
 	"net"
 	"net/url"
+	"sync"
 	"time"
 
+	"github.com/Jamescog/bttclient/internal/data"
 	tracker "github.com/Jamescog/bttclient/internal/trackers/udp"
 
 	"github.com/Jamescog/bttclient/internal/peerman"
@@ -56,6 +58,8 @@ func main() {
 	fmt.Printf("Announce: %s\n", torrent.Announce())
 	fmt.Printf("Name: %s\n", torrent.Name())
 	fmt.Printf("Piece Length: %d\n", torrent.PieceLength())
+	fmt.Printf("Total Length: %d bytes\n", torrent.Length())
+	fmt.Printf("Number of pieces: %d\n", torrent.NumPieces())
 	fmt.Printf("Info Hash: %s\n", infoHashHex)
 
 	u, err := url.Parse(torrent.Announce())
@@ -122,43 +126,57 @@ func main() {
 		log.Fatalf("announce failed: %v", err)
 	}
 
+	if err := peerman.InitializeDownload(torrent.Name(), torrent.Pieces(), torrent.Length()); err != nil {
+		log.Fatalf("failed to initialize download: %v", err)
+	}
+	defer peerman.CloseDownload()
+
 	log.Println("peers:")
 	// for _, p := range peers {
 	// 	fmt.Printf(" - %s:%d\n", p.IP.String(), p.Port)
 	// }
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+	var wg sync.WaitGroup
+	attempted := 0
 
-	results := make(chan error, len(peers))
+	sem := make(chan struct{}, 57)
 
 	for _, peer := range peers {
-		p := peerman.Peer{peer.IP.String(), peer.Port}
 
+		if attempted > 57 {
+			break
+		}
+		attempted++
+
+		p := peerman.Peer{peer.IP.String(), peer.Port}
+		wg.Add(1)
 		go func(p peerman.Peer) {
-			err := peerman.ConnectToPeer(ctx, p, infoHash, peerID)
-			results <- err
+			defer wg.Done()
+
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+			defer cancel()
+
+			conn, err := peerman.ConnectToPeer(ctx, p, infoHash, peerID)
+			if err != nil {
+				log.Printf("Failed to handshake with %s:%d: %v", p.IP, p.Port, err)
+				return
+			}
+			peerman.HandlePeer(p, conn, torrent.PieceLength())
 		}(p)
 
 	}
+	go printPeriodicStats()
+	wg.Wait()
 
-	successCount := 0
+	log.Printf("Download complete! File saved to: %s", peerman.GetOutputPath())
+}
 
-	for i := 0; i < len(peers); i++ {
-		select {
-		case err := <-results:
-			{
-				if err == nil {
-					successCount++
-				} else {
-					log.Printf("failed to connect: %v", err)
-				}
-			}
-		case <-ctx.Done():
-			log.Println("overall timeout reached")
-		}
+func printPeriodicStats() {
+	for {
+		time.Sleep(15 * time.Second)
+		data.PrintClientStates()
 	}
-
-	log.Printf("✅ Connected to %d out of %d peers", successCount, len(peers))
-
 }
