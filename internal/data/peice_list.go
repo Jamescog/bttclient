@@ -283,7 +283,7 @@ func MarkPieceAsRequested(pieceIndex uint32) {
 	piece.Mu.Unlock()
 }
 
-func SelectNextPiece(peerIP string, totalPieces uint32) int32 {
+func SelectNextPiece(peerIP string) int32 {
 	globalMu.RLock()
 	client, exists := GlobalClientList[peerIP]
 	globalMu.RUnlock()

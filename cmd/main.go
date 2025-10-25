@@ -131,11 +131,6 @@ func main() {
 	}
 	defer peerman.CloseDownload()
 
-	log.Println("peers:")
-	// for _, p := range peers {
-	// 	fmt.Printf(" - %s:%d\n", p.IP.String(), p.Port)
-	// }
-
 	var wg sync.WaitGroup
 	attempted := 0
 
@@ -148,7 +143,7 @@ func main() {
 		}
 		attempted++
 
-		p := peerman.Peer{peer.IP.String(), peer.Port}
+		p := peerman.Peer{IP: peer.IP.String(), Port: peer.Port}
 		wg.Add(1)
 		go func(p peerman.Peer) {
 			defer wg.Done()

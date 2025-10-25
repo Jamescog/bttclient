@@ -126,7 +126,7 @@ func HandlePeer(peer Peer, conn net.Conn, pieceLength int) {
 		case 1:
 			data.UnchokeClient(peer.IP)
 
-			pieceIndex := data.SelectNextPiece(peer.IP, 1000)
+			pieceIndex := data.SelectNextPiece(peer.IP)
 			if pieceIndex >= 0 {
 				if err := RequestPiece(conn, uint32(pieceIndex), uint64(pieceLength), peer.IP); err != nil {
 					log.Printf("Failed to request piece %d: %v", pieceIndex, err)
@@ -156,7 +156,7 @@ func HandlePeer(peer Peer, conn net.Conn, pieceLength int) {
 				}
 
 				if pieceComplete {
-					nextPieceIndex := data.SelectNextPiece(peer.IP, 1000)
+					nextPieceIndex := data.SelectNextPiece(peer.IP)
 					if nextPieceIndex >= 0 {
 						if err := RequestPiece(conn, uint32(nextPieceIndex), uint64(pieceLength), peer.IP); err != nil {
 							log.Printf("Failed to request next piece: %v", err)
